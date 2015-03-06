@@ -10,6 +10,7 @@
 #include <vtkRenderer.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkCallbackCommand.h>
+#include <vtkCamera.h>
 //Leap Controller includes
 #include "Leap.h"
 //system includes
@@ -20,12 +21,24 @@
 using namespace Leap;
 
 //Global Variables, please dont hate me
-double hand_x = 0;
-double hand_y = 0;
-double hand_dir_x = 0;
-double hand_dir_y = 0;
+//Since I dont have a leap to play with, im setting the hand_x and hand_y
+// varialbes to static values, if you have a controller just comment back in the lines
+// that change their value, and set the initialization back to 0
+
+//I started with only 2 globals and now its ballooned out quite a bit,
+//  but Im still not sure how to pass varialbes to the event handler
+//  so for the time being its just going to have to be this way
+double hand_x = -0.05;
+double hand_y = -0.05;
+double hand_dir_x = -0.05;
+double hand_dir_y = -0.05;
 int xSize = 500;
 int ySize = 500;
+double cameraRoll = 0;
+double cameraYaw = 0;
+double cameraElevation = 0;
+vtkSmartPointer<vtkCamera> camera;
+vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor;
 
 
 class SampleListener : public Listener {
@@ -261,12 +274,15 @@ class vtkTimerCallback : public vtkCommand
       ++this->TimerCount;
       }
       // cout << "x:" << hand_x << " y:" << hand_y << '\n';
-       cout << "dirx:" << hand_dir_x << " diry:" << hand_dir_y << '\n';
+      //cout << "dirx:" << hand_dir_x << " diry:" << hand_dir_y << '\n';
       int multiplyer = 1;
       if(hand_dir_y < 0)
         multiplyer = -1;
       int eventX = (xSize/2) + floor(-10*hand_x);
       int eventY = (ySize/2) + floor(10*hand_y*multiplyer);
+      renderWindowInteractor->SetEventInformation(eventX, eventY, 0, 1, 0, 0);
+      renderWindowInteractor->LeftButtonPressEvent();
+
       //cout << "x:" << eventX << " y:" << eventY << '\n';
 
     }
@@ -301,10 +317,15 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkRenderWindow> renderWindow =
     vtkSmartPointer<vtkRenderWindow>::New();
   renderWindow->AddRenderer(renderer);
-  vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
-    vtkSmartPointer<vtkRenderWindowInteractor>::New();
+  renderWindowInteractor = vtkSmartPointer<vtkRenderWindowInteractor>::New();
   renderWindowInteractor->SetRenderWindow(renderWindow);
  
+  //create the camera
+  camera = vtkSmartPointer<vtkCamera>::New();
+  camera->SetPosition(0, 0, 20);
+  camera->SetFocalPoint(0, 0, 0);
+  renderer->SetActiveCamera(camera);
+  //camera->Roll(50.0);
   // Add the actor to the scene
   renderer->AddActor(actor);
   renderer->SetBackground(.1, .3, .2); // Background color dark green
@@ -338,7 +359,6 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkTimerCallback> callback =
     vtkSmartPointer<vtkTimerCallback>::New();
 
-//  callback->SetCallback(RenderCallback);    
   renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, callback);
   int timerId = renderWindowInteractor->CreateRepeatingTimer(10);
   std::cout << "timerId: " << timerId << std::endl; 
