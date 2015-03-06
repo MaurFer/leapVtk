@@ -11,6 +11,7 @@
 #include <vtkRenderWindowInteractor.h>
 #include <vtkCallbackCommand.h>
 #include <vtkCamera.h>
+#include <vtkRendererCollection.h>
 //Leap Controller includes
 #include "Leap.h"
 //system includes
@@ -21,22 +22,25 @@
 using namespace Leap;
 
 //Global Variables, please dont hate me
-//Since I dont have a leap to play with, im setting the hand_x and hand_y
-// varialbes to static values, if you have a controller just comment back in the lines
-// that change their value, and set the initialization back to 0
-
 //I started with only 2 globals and now its ballooned out quite a bit,
 //  but Im still not sure how to pass varialbes to the event handler
 //  so for the time being its just going to have to be this way
-double hand_x = -0.05;
-double hand_y = -0.05;
-double hand_dir_x = -0.05;
-double hand_dir_y = -0.05;
-int xSize = 500;
-int ySize = 500;
+double hand_x = 0;
+double hand_y = 0;
+double hand_dir_x = 0;
+double hand_dir_y = 0;
+double grab = 0;
+int xSize = 1000;
+int ySize = 1000;
 double cameraRoll = 0;
 double cameraYaw = 0;
 double cameraElevation = 0;
+double posX = 0;
+double posY = 0;
+double posZ = 0;
+bool handPresent = false;
+bool switchBgRed = false;
+bool switchBgGreen = false;
 vtkSmartPointer<vtkCamera> camera;
 vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor;
 
@@ -91,22 +95,27 @@ void SampleListener::onFrame(const Controller& controller) {
   //           << ", extended fingers: " << frame.fingers().extended().count()
   //           << ", tools: " << frame.tools().count()
   //           << ", gestures: " << frame.gestures().count() << std::endl;
-
+  handPresent = false;
   HandList hands = frame.hands();
   for (HandList::const_iterator hl = hands.begin(); hl != hands.end(); ++hl) {
     // Get the first hand
     const Hand hand = *hl;
+    handPresent = true;
+    grab = hand.grabStrength();
     std::string handType = hand.isLeft() ? "Left hand" : "Right hand";
     // std::cout << std::string(2, ' ') << handType << ", id: " << hand.id()
     //           << ", palm position: " << hand.palmPosition() << std::endl;
     // Get the hand's normal vector and direction
     const Vector normal = hand.palmNormal();
     const Vector direction = hand.direction();
+    const Vector pos = hand.palmPosition();
     //std::cout << "Normal x:" << normal.x << " y:" << normal.y << '\n';
     hand_x = normal.x;
     hand_y = normal.y;
     hand_dir_x = direction.x;
     hand_dir_y = direction.y;
+    posX = pos.x;
+    posY = pos.y;
     // Calculate the hand's pitch, roll, and yaw angles
     // std::cout << std::string(2, ' ') <<  "pitch: " << direction.pitch() * RAD_TO_DEG << " degrees, "
     //           << "roll: " << normal.roll() * RAD_TO_DEG << " degrees, "
@@ -161,8 +170,10 @@ void SampleListener::onFrame(const Controller& controller) {
 
         if (circle.pointable().direction().angleTo(circle.normal()) <= PI/2) {
           clockwiseness = "clockwise";
+          switchBgRed = true;
         } else {
           clockwiseness = "counterclockwise";
+          switchBgGreen = true;
         }
 
         // Calculate angle swept since last frame
@@ -273,16 +284,45 @@ class vtkTimerCallback : public vtkCommand
       {
       ++this->TimerCount;
       }
-      // cout << "x:" << hand_x << " y:" << hand_y << '\n';
-      //cout << "dirx:" << hand_dir_x << " diry:" << hand_dir_y << '\n';
-      int multiplyer = 1;
-      if(hand_dir_y < 0)
-        multiplyer = -1;
-      int eventX = (xSize/2) + floor(-10*hand_x);
-      int eventY = (ySize/2) + floor(10*hand_y*multiplyer);
-      renderWindowInteractor->SetEventInformation(eventX, eventY, 0, 1, 0, 0);
-      renderWindowInteractor->LeftButtonPressEvent();
-
+        // cout << "posx:" << posX << " posy:" << posY 
+        //     << " dirx:" << hand_dir_x << " diry:" << hand_dir_y << " grab:" << grab << '\n';
+      
+      //camera->Roll(5);
+      //camera->Pitch(5);
+      //double x, y, z;
+      //camera->GetPosition(x, y, z);
+      //std::cout << x << ' ' << y << ' ' << z << '\n';
+      //camera->Elevation(0.5);
+      //camera->Roll(0.5);
+      //camera->Yaw(0.5);
+      if(handPresent){
+        if(grab < 0.8)
+          grab = (1/(20*(grab+0.01)));
+        else
+          grab = 2;
+        if(switchBgRed){
+          renderWindowInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->SetBackground(.3, .2, .1);
+          switchBgRed = false;
+        }
+        if(switchBgGreen){
+          renderWindowInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->SetBackground(.1, .2, .2);
+          switchBgGreen = false;
+        }
+        /*
+        if(posY < 90) {
+          camera->Zoom(100-posY);
+        }
+        else if(posY > 120) {
+          camera->Zoom(100-posY);
+        }
+        */
+        camera->Elevation(hand_y*hand_dir_y*grab);
+        camera->Azimuth(hand_x*grab);
+        renderWindowInteractor->Render();
+      }
+      
+      hand_x = 0;
+      hand_dir_y = 0;
       //cout << "x:" << eventX << " y:" << eventY << '\n';
 
     }
@@ -301,7 +341,8 @@ int main(int argc, char *argv[])
   vtkSmartPointer<vtkCubeSource> cubeSource = vtkSmartPointer<vtkCubeSource>::New();
   cubeSource->SetCenter(0.0, 0.0, 0.0);
   cubeSource->SetXLength(5.0);
-  cubeSource->SetYLength(8.0);
+  cubeSource->SetYLength(6.0);
+  cubeSource->SetZLength(5.0);
  
   // Create a mapper and actor
   vtkSmartPointer<vtkPolyDataMapper> mapper =
@@ -346,10 +387,6 @@ int main(int argc, char *argv[])
   if (argc > 1 && strcmp(argv[1], "--bg") == 0)
     controller.setPolicy(Leap::Controller::POLICY_BACKGROUND_FRAMES);
 
-  int debug = 0;
-  if (argc > 1 && strcmp(argv[2], "-d") == 0)
-    debug = 1;
-
   /****** Start VTK window ******/
   // Render and interact
   renderWindow->SetWindowName(argv[0]);
@@ -361,7 +398,7 @@ int main(int argc, char *argv[])
 
   renderWindowInteractor->AddObserver(vtkCommand::TimerEvent, callback);
   int timerId = renderWindowInteractor->CreateRepeatingTimer(10);
-  std::cout << "timerId: " << timerId << std::endl; 
+  //std::cout << "timerId: " << timerId << std::endl; 
   renderWindow->Render();
   renderWindowInteractor->Start();
  
