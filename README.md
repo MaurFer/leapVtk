@@ -13,4 +13,4 @@ You will need to alter the CMakeList.txt file to point to the location you insta
 Right now Im just focusing on controlling the camera pan/tilt/zoom. Later if I have time, and access to the hardware, I
 would love to add addition gesture control.
 
-A video of the project in action can be found [https://www.youtube.com/watch?v=Bd_-4hPuJ-w](here)
+A video of the project in action can be found [here](https://www.youtube.com/watch?v=Bd_-4hPuJ-w)
