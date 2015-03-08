@@ -258,43 +258,17 @@ void SampleListener::onServiceDisconnect(const Controller& controller) {
   std::cout << "Service Disconnected" << std::endl;
 }
 
-void RenderCallback(vtkObject* caller, long unsigned int eventId, void* clientData, void* callData ) {
-  vtkRenderer* renderer = static_cast<vtkRenderer*>(caller);
- 
-  double timeInSeconds = renderer->GetLastRenderTimeInSeconds();
-  double fps = 1.0/timeInSeconds;
-  std::cout << "FPS: " << fps << std::endl;
- 
-  std::cout << "Callback" << std::endl;
-}
- 
 class vtkTimerCallback : public vtkCommand
 {
   public:
     static vtkTimerCallback *New()
     {
       vtkTimerCallback *cb = new vtkTimerCallback;
-      cb->TimerCount = 0;
       return cb;
     }
  
     virtual void Execute(vtkObject *vtkNotUsed(caller), unsigned long eventId, void *vtkNotUsed(callData))
     {
-      if (vtkCommand::TimerEvent == eventId)
-      {
-      ++this->TimerCount;
-      }
-        // cout << "posx:" << posX << " posy:" << posY 
-        //     << " dirx:" << hand_dir_x << " diry:" << hand_dir_y << " grab:" << grab << '\n';
-      
-      //camera->Roll(5);
-      //camera->Pitch(5);
-      //double x, y, z;
-      //camera->GetPosition(x, y, z);
-      //std::cout << x << ' ' << y << ' ' << z << '\n';
-      //camera->Elevation(0.5);
-      //camera->Roll(0.5);
-      //camera->Yaw(0.5);
       if(handPresent){
         if(grab < 0.8)
           grab = (1/(20*(grab+0.01)));
@@ -308,14 +282,7 @@ class vtkTimerCallback : public vtkCommand
           renderWindowInteractor->GetRenderWindow()->GetRenderers()->GetFirstRenderer()->SetBackground(.1, .2, .2);
           switchBgGreen = false;
         }
-        /*
-        if(posY < 90) {
-          camera->Zoom(100-posY);
-        }
-        else if(posY > 120) {
-          camera->Zoom(100-posY);
-        }
-        */
+        
         camera->Elevation(hand_y*hand_dir_y*grab);
         camera->Azimuth(hand_x*grab);
         renderWindowInteractor->Render();
@@ -323,13 +290,7 @@ class vtkTimerCallback : public vtkCommand
       
       hand_x = 0;
       hand_dir_y = 0;
-      //cout << "x:" << eventX << " y:" << eventY << '\n';
-
-    }
- 
-  private:
-    int TimerCount;
- 
+    } 
 };
 
 
